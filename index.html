@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>InspirationCat — 閃いた！</title>
+    <meta name="description" content="動物の写真をアップロードするだけで「閃いた！」風の合成画像を生成。すべてブラウザ内で完結。" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/bg.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main class="container" x-data="app()" x-init="init()">
+      <hgroup style="text-align:center; padding: 0.4rem 0 0.3rem; flex-shrink: 0;">
+        <h1>InspirationCat</h1>
+        <p>写真をアップロードして「閃いた！」画像を作ろう</p>
+      </hgroup>
+
+      <!-- アップロードエリア -->
+      <section x-show="phase === 'upload'">
+        <label
+          class="upload-area"
+          tabindex="0"
+          role="button"
+          aria-label="画像をアップロード"
+          @dragover.prevent="$el.classList.add('dragover')"
+          @dragleave="$el.classList.remove('dragover')"
+          @drop.prevent="$el.classList.remove('dragover'); onFile($event.dataTransfer.files[0])"
+          @keydown.enter.prevent="$refs.fileInput.click()"
+          @keydown.space.prevent="$refs.fileInput.click()"
+        >
+          <input x-ref="fileInput" type="file" accept="image/*" class="visually-hidden"
+            @change="onFile($event.target.files[0])" />
+          <div style="font-size:3.5rem" aria-hidden="true">🐱</div>
+          <p><strong>タップ / クリックして画像を選択</strong></p>
+          <p><small>または、ここに画像をドロップ</small></p>
+        </label>
+      </section>
+
+      <!-- 処理中 -->
+      <section x-show="phase === 'progress'" style="text-align:center; padding:3rem 0;" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <p x-text="progressMsg" style="margin-top:1rem;"></p>
+        <p x-text="progressPct" style="color:var(--muted);"></p>
+      </section>
+
+      <!-- Canvas + コントロール -->
+      <section class="canvas-section" x-show="phase === 'canvas'">
+        <div class="canvas-area">
+        <div class="canvas-wrapper"
+          @mousedown="dragStart($event)"
+          @mousemove.window="dragMove($event)"
+          @mouseup.window="dragEnd()"
+          @touchstart.prevent="touchStart($event)"
+          @touchmove.prevent="touchMove($event)"
+          @touchend.prevent="touchEnd()"
+        >
+          <canvas id="main-canvas" x-ref="canvas" aria-label="合成プレビュー"></canvas>
+          <div class="drag-guide" x-show="showGuide" x-text="guideText" aria-hidden="true"></div>
+        </div>
+        </div>
+
+        <article style="margin-top:0.5rem; margin-bottom:0; flex-shrink:0;">
+          <div class="control-row">
+            <label>サイズ</label>
+            <input type="range" min="5" max="300" :value="scalePct" @input="scalePct = +$event.target.value; render()" />
+            <small x-text="scalePct + '%'"></small>
+          </div>
+          <div class="control-row">
+            <label>回転</label>
+            <input type="range" min="-180" max="180" :value="rotation" @input="rotation = +$event.target.value; render()" />
+            <small x-text="rotation + '°'"></small>
+          </div>
+          <div class="btn-row">
+            <button class="secondary" @click="_flipped = !_flipped; render()">↔ 反転</button>
+            <button class="secondary" @click="resetState()">↺ リセット</button>
+          </div>
+        </article>
+
+        <div class="btn-row" style="margin-top:0.5rem;">
+          <button @click="download()">💾 保存</button>
+          <button class="btn-x" @click="xPost()">𝕏 ポスト</button>
+          <button x-show="canShare" class="secondary" @click="share()">🔗 共有</button>
+        </div>
+
+        <div class="hashtag-row">
+          <button class="hashtag-btn outline" @click="copyHashtag()">#InspirationCat</button>
+          <small x-show="copied" x-transition style="color:#69f0ae;" aria-live="polite">コピーしました！</small>
+        </div>
+
+        <div style="text-align:center; margin-top:0.5rem;">
+          <label class="outline secondary" tabindex="0" role="button" style="display:inline-block; cursor:pointer;">
+            <input type="file" accept="image/*" class="visually-hidden" @change="onFile($event.target.files[0])" />
+            📷 別の写真を使う
+          </label>
+        </div>
+      </section>
+
+      <!-- エラー -->
+      <section x-show="phase === 'error'" style="text-align:center; padding:2rem 0;" aria-live="assertive">
+        <p style="color:var(--error);" x-text="errorMsg"></p>
+        <button @click="phase = 'upload'">もう一度試す</button>
+      </section>
+
+      <footer style="text-align:center; padding:0.4rem 0; color:var(--muted); font-size:0.8rem; flex-shrink:0;">
+        すべての処理はブラウザ内で完結します。画像はサーバーに送信されません。
+      </footer>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

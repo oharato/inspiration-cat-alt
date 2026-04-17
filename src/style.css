@@ -1,0 +1,288 @@
+/* ===== リセット & CSS 変数 ===== */
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --bg:        #11191f;
+  --surface:   #1a2533;
+  --border:    #2d3d50;
+  --text:      #c8d3dc;
+  --muted:     #5f7285;
+  --primary:   #5b8dee;
+  --primary-h: #4a7de4;
+  --error:     #e05252;
+  --success:   #69f0ae;
+  --radius:    0.4rem;
+  --shadow:    0 4px 24px rgba(0,0,0,0.6);
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+h1, h2, h3 { margin: 0 0 0.2rem; color: #fff; font-weight: 700; }
+p  { margin: 0 0 0.4rem; }
+small { font-size: 0.8em; color: var(--muted); }
+article, hgroup { margin: 0; padding: 0; }
+
+/* ===== コンテナ ===== */
+.container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* ===== ボタン ===== */
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  background: var(--primary);
+  color: #fff;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+button:hover  { background: var(--primary-h); }
+button:active { opacity: 0.8; }
+
+button.secondary {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+button.secondary:hover { background: rgba(255,255,255,0.06); }
+
+button.outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+button.outline:hover { background: rgba(255,255,255,0.06); }
+
+/* ファイル選択ラベルをボタン風に */
+label[role="button"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35em;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  background: transparent;
+  color: var(--text);
+  transition: background 0.15s;
+}
+label[role="button"]:hover { background: rgba(255,255,255,0.06); }
+
+/* ===== input[type=range] ===== */
+input[type="range"] {
+  accent-color: var(--primary);
+  background: transparent;
+}
+
+/* ===== レイアウト ===== */
+main.container {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  box-sizing: border-box;
+}
+
+/* canvas フェーズで canvas section を伸縮させる */
+.canvas-section {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* canvas-wrapper のサイズを決めるコンテナ */
+.canvas-area {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* ===== アップロードエリア ===== */
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 220px;
+  border: 2.5px dashed var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  padding: 2rem;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: center;
+}
+.upload-area:hover,
+.upload-area:focus {
+  border-color: var(--primary);
+  background: rgba(91,141,238,0.07);
+  outline: none;
+}
+.upload-area.dragover {
+  border-color: var(--primary);
+  background: rgba(91,141,238,0.14);
+}
+
+/* ===== スピナー ===== */
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(91,141,238,0.25);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Canvas ===== */
+.canvas-wrapper {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--radius);
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+  background: #000;
+  box-shadow: var(--shadow);
+}
+/* コンテナが 3:2 より横長 → 高さが制約 */
+@container (aspect-ratio > 3/2) {
+  .canvas-wrapper { height: 100cqh; width: auto; }
+}
+/* コンテナが 3:2 以下 → 幅が制約 */
+@container (aspect-ratio <= 3/2) {
+  .canvas-wrapper { width: 100cqw; height: auto; }
+}
+.canvas-wrapper:active { cursor: grabbing; }
+
+#main-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+
+/* ===== ドラッグガイド ===== */
+.drag-guide {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: fadeOut 3s ease forwards;
+  animation-delay: 2.5s;
+}
+@keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
+
+/* ===== コントロール行 ===== */
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+.control-row label {
+  min-width: 2.8rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+}
+.control-row input[type="range"] {
+  flex: 1 1 0%;
+  min-width: 0;
+  width: 0;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.control-row small {
+  flex: 0 0 3.5rem;
+  width: 3.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* ===== ボタン行 ===== */
+.btn-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.btn-row > * { flex: 1; margin: 0; }
+
+/* X (Twitter) ボタン */
+.btn-x {
+  background: #000 !important;
+  border: 1px solid #333 !important;
+  color: #fff !important;
+}
+.btn-x:hover { background: #111 !important; }
+
+/* ===== ハッシュタグ行 ===== */
+.hashtag-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+.hashtag-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 0.3rem 0.7rem;
+}
+.hashtag-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+
