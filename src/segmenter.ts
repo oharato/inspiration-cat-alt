@@ -121,6 +121,6 @@ export async function loadBg(): Promise<HTMLImageElement> {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('背景画像の読み込みに失敗しました'));
-    img.src = '/bg.svg';
+    img.src = '/bg.png';
   });
 }

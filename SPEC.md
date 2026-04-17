@@ -94,7 +94,7 @@ npm install @huggingface/transformers
 ```
 inspiration-cat/
 ├── public/
-│   ├── bg.svg           # 閃きエフェクト背景画像（SVG・1200×800・3:2）
+│   ├── bg.png           # 閃きエフェクト背景画像（PNG・680×453）
 │   └── wasm/            # ONNX Runtime WASMファイル（本番用）
 │       └── ort-wasm-simd-threaded.asyncify.mjs
 ├── src/
@@ -155,7 +155,7 @@ const [{ mask }] = await pipe(imageUrl);
 ## 7. Canvas 合成ロジック
 
 ```
-1. 背景画像（bg.svg）をCanvasサイズに合わせて描画（SVGはピクセル密度に関係なく鮮明）
+1. 背景画像（bg.png）をCanvasサイズに合わせて描画
 2. 透過処理済み被写体を以下のパラメータで重ねて描画:
    - 位置: (subjectX, subjectY) — 正規化座標 0.0〜1.0
    - スケール: subjectScale (0.05〜3.0)
