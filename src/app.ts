@@ -46,6 +46,20 @@ export function createApp() {
         : 'ドラッグで位置を調整';
     },
 
+    // ── canvas $refs ヘルパー ──
+    _getCanvas(): HTMLCanvasElement {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (this as any).$refs.canvas as HTMLCanvasElement;
+    },
+
+    // ── ドラッグ位置更新（マウス・タッチ共通） ──
+    _applyDrag(clientX: number, clientY: number) {
+      const rect = this._getCanvas().getBoundingClientRect();
+      this._pos.x = Math.max(0, Math.min(1, this._drag.origX + (clientX - this._drag.startX) / rect.width));
+      this._pos.y = Math.max(0, Math.min(1, this._drag.origY + (clientY - this._drag.startY) / rect.height));
+      this.render();
+    },
+
     async onFile(file: File | undefined) {
       if (!file?.type.startsWith('image/')) {
         this.errorMsg = '画像ファイルを選択してください。';
@@ -69,8 +83,7 @@ export function createApp() {
 
         // Canvas を初期化（初回のみ）
         if (!this._renderer) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const canvas = (this as any).$refs.canvas as HTMLCanvasElement;
+          const canvas = this._getCanvas();
           canvas.width = CANVAS_W;
           canvas.height = CANVAS_H;
           this._renderer = new CanvasRenderer(canvas);
@@ -127,13 +140,7 @@ export function createApp() {
 
     dragMove(e: MouseEvent) {
       if (!this._drag.active) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rect = ((this as any).$refs.canvas as HTMLCanvasElement).getBoundingClientRect();
-      const scaleX = CANVAS_W / rect.width;
-      const scaleY = CANVAS_H / rect.height;
-      this._pos.x = Math.max(0, Math.min(1, this._drag.origX + (e.clientX - this._drag.startX) * scaleX / CANVAS_W));
-      this._pos.y = Math.max(0, Math.min(1, this._drag.origY + (e.clientY - this._drag.startY) * scaleY / CANVAS_H));
-      this.render();
+      this._applyDrag(e.clientX, e.clientY);
     },
 
     dragEnd() { this._drag.active = false; },
@@ -157,15 +164,8 @@ export function createApp() {
 
     touchMove(e: TouchEvent) {
       if (!this._renderer?.hasSubject()) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rect = ((this as any).$refs.canvas as HTMLCanvasElement).getBoundingClientRect();
-      const scaleX = CANVAS_W / rect.width;
-      const scaleY = CANVAS_H / rect.height;
-
       if (e.touches.length === 1 && this._drag.active) {
-        this._pos.x = Math.max(0, Math.min(1, this._drag.origX + (e.touches[0].clientX - this._drag.startX) * scaleX / CANVAS_W));
-        this._pos.y = Math.max(0, Math.min(1, this._drag.origY + (e.touches[0].clientY - this._drag.startY) * scaleY / CANVAS_H));
-        this.render();
+        this._applyDrag(e.touches[0].clientX, e.touches[0].clientY);
       } else if (e.touches.length === 2) {
         const [t1, t2] = [e.touches[0], e.touches[1]];
         const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
