@@ -77,15 +77,15 @@ npm install @huggingface/transformers
 
 | カテゴリ | 技術 |
 |---|---|
-| ビルドツール | **Vite** + TypeScript |
+| ビルドツール | **Vite 8** + TypeScript 6 |
 | 背景除去 | **`@huggingface/transformers`** (Apache-2.0) + `Xenova/modnet` |
 | ML ランタイム | ONNX Runtime Web (WASM / WebGPU 自動選択) |
+| UI フレームワーク | **Alpine.js** |
 | 描画 | HTML5 Canvas API |
-| スタイリング | CSS (バニラ、フレームワークなし) |
+| スタイリング | CSS (バニラ、カスタム CSS 変数) |
 | ホスティング | **Cloudflare Pages (Static Assets)** |
 | デプロイ設定 | `wrangler.toml` + `pages_build_output_dir` |
 | CI/CD | GitHub Actions → `wrangler deploy` |
-| 解析 | Cloudflare Pages Analytics（任意） |
 
 ---
 
@@ -94,44 +94,61 @@ npm install @huggingface/transformers
 ```
 inspiration-cat/
 ├── public/
-│   ├── bg.svg           # 閃きエフェクト背景画像（SVG・約2KB）
-│   └── sample.webp      # トップページ表示用サンプル画像
+│   ├── bg.svg           # 閃きエフェクト背景画像（SVG・1200×800・3:2）
+│   └── wasm/            # ONNX Runtime WASMファイル（本番用）
+│       └── ort-wasm-simd-threaded.asyncify.mjs
 ├── src/
-│   ├── main.ts          # アプリのエントリポイント・ロジック
-│   └── style.css        # スタイル
+│   ├── types.ts         # 型定義・定数（CANVAS_W=1200, CANVAS_H=800）
+│   ├── segmenter.ts     # 背景除去ロジック（image-segmentation pipeline）
+│   ├── renderer.ts      # Canvas描画ロジック
+│   ├── app.ts           # Alpine.js コンポーネント定義
+│   ├── main.ts          # エントリポイント
+│   └── style.css        # スタイル（CSS変数・レスポンシブ）
 ├── index.html
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
-└── wrangler.toml        # Cloudflare Pages Static Assets 設定
+├── wrangler.toml        # Cloudflare Pages 設定
+└── README.md
 ```
 
 ---
 
 ## 6. 背景除去の実装方針
 
-```typescript
-import { pipeline } from '@huggingface/transformers';
+`image-segmentation` pipeline を使用し、返却されたマスク（`RawImage`）を Canvas API で手動適用することで透過画像を生成します。
 
-// モデル初期化（初回のみ）
-const segmenter = await pipeline('background-removal', 'Xenova/modnet', {
-  device: 'webgpu',   // WebGPU 非対応なら自動で wasm にフォールバック
+```typescript
+import { pipeline, env, RawImage } from '@huggingface/transformers';
+
+// 本番ビルドではローカルWASMを使用（CDN不要・CSP準拠）
+if (import.meta.env.PROD) {
+  env.backends.onnx.wasm.wasmPaths = '/wasm/';
+}
+
+// モデル初期化（初回のみ、WebGPU→WASMフォールバック）
+const pipe = await pipeline('image-segmentation', 'Xenova/modnet', {
+  device: 'webgpu',
   dtype: 'fp32',
 });
 
-// 背景除去（Blob → 透過 PNG Blob）
-const [result] = await segmenter(imageUrl);
-const blob = await result.blob();
+// 背景除去: マスクをCanvasで手動適用して透過PNGを生成
+const [{ mask }] = await pipe(imageUrl);
+// mask は RawImage (グレースケール)。Canvas で alpha チャンネルに適用。
 ```
 
-### モデル選択の補足
+### WASM 配信
 
-| モデル | サイズ | 動物への適性 | 商用ライセンス |
+- `ort-wasm-simd-threaded.asyncify.wasm` — Vite ビルド時に `/wasm/` へ出力（ハッシュなし）
+- `ort-wasm-simd-threaded.asyncify.mjs` — `node_modules/onnxruntime-web/dist/` からビルド後コピー
+- dev モードは CDN (jsdelivr) を使用（Vite の `public/` 制限を回避）
+
+### モデル
+
+| モデル | サイズ | 商用ライセンス | 採用状況 |
 |---|---|---|---|
-| `Xenova/modnet` | ~25MB | ★★☆ | Apache-2.0 ✅ |
-| `Xenova/modnet-photographic-portrait-matting` | ~25MB | ★★★ | Apache-2.0 ✅ |
-
-→ 動物写真に適した **`Xenova/modnet-photographic-portrait-matting`** を優先採用し、品質を検証の上確定する。
+| `Xenova/modnet` | ~25MB | Apache-2.0 ✅ | **採用** |
+| `Xenova/modnet-photographic-portrait-matting` | ~25MB | Apache-2.0 ✅ | 401エラーのため不採用 |
 
 ---
 
@@ -179,24 +196,34 @@ const blob = await result.blob();
 
 ### `wrangler.toml`
 ```toml
-name = "inspiration-cat"
+name = "inspiration-cat-alt"
 pages_build_output_dir = "dist"
 compatibility_date = "2025-01-01"
-
-[assets]
-directory = "./dist"
 ```
 
-> `pages_build_output_dir` を指定すると Cloudflare Pages の **Static Assets** モードで動作し、  
-> `dist/` 以下のファイルがそのまま CDN エッジから配信されます。Worker は不要です。
+> `[assets]` セクションは Pages では非サポートのため不要。
+
+### `package.json` scripts
+```json
+"dev":    "vite",
+"build":  "tsc && vite build && cp node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.mjs dist/wasm/",
+"deploy": "npm run build && npx wrangler pages deploy dist --branch production"
+```
 
 ### `public/_headers` (レスポンスヘッダー・CSP)
 ```
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://platform.twitter.com; worker-src blob:; connect-src 'self' https://huggingface.co https://cdn-lfs.huggingface.co https://cdn-lfs-us-1.huggingface.co;
+  Content-Security-Policy: default-src 'self';
+    script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://cdn.jsdelivr.net;
+    worker-src blob:;
+    connect-src 'self' blob: https://huggingface.co https://cdn-lfs.huggingface.co
+      https://cdn-lfs-us-1.huggingface.co https://*.xethub.hf.co https://cdn.jsdelivr.net;
+    img-src 'self' blob: data:;
+    style-src 'self' 'unsafe-inline';
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
 
 /*.wasm
   Cache-Control: public, max-age=31536000, immutable
@@ -205,8 +232,8 @@ directory = "./dist"
   Cache-Control: public, max-age=31536000, immutable
 ```
 
-> `.wasm` ファイルと Vite が生成するハッシュ付き assets を長期キャッシュすることで  
-> 再訪問時のロードを高速化します。
+> `'unsafe-eval'` は Alpine.js の式評価に必要。`blob:` は transformers.js の画像処理に必要。  
+> `https://*.xethub.hf.co` は HuggingFace の XET ストレージ経由のモデル配信に対応。
 
 ### GitHub Actions ワークフロー
 ```yaml
